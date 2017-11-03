@@ -69,10 +69,18 @@ void watchdog_dump_status()
 
    #define PRINT_RUNNER_TIME(name, variable) sprintf(runner_status_dump + strlen(runner_status_dump), "runner."name" = %s", ctime(&(variable))); sprintf(runner_status_dump + strlen(runner_status_dump), "runner."name".distance = %s\n", calculate_runtime(time(NULL) - (variable)));
 
+   if (sem_wait(&runner_status->semaphore) == -1)
+     return;
+
    sprintf(runner_status_dump, "runner.pid = %d\n", runner_status->pid);
+   PRINT_RUNNER_TIME("ping", runner_status->ping);
    PRINT_RUNNER_TIME("startTime", runner_status->starttime);
    PRINT_RUNNER_TIME("lastWeightTime", runner_status->last_weight_time);
    PRINT_RUNNER_TIME("lastPacketTime", runner_status->last_packet_time);
+   sprintf(runner_status_dump + strlen(runner_status_dump), "runner.numInvalidPackets = %d\n", runner_status->num_invalid_packets);
+
+   sem_post(&runner_status->semaphore);
+
    fwrite(runner_status_dump, strlen(runner_status_dump), 1, fd);
 
    if (old_runner_dumps[0] != NULL)
@@ -110,6 +118,7 @@ int watchdog_run()
 	if (fork_response > 0) {
 	   runner_status->pid = fork_response;
 	   runner_status->starttime = time(NULL);
+	   runner_status->ping = runner_status->starttime;
 	   runner_starts++;
 	   if (runner_status_dump[0] != '\0')
 	     {

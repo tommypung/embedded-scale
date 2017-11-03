@@ -4,6 +4,7 @@
 #include <string.h>
 #include "vetek.h"
 
+int vetek_status = 0;
 static VetekScalePacket lastPacket;
 
 #define VALID_UNIT(p) ((p)->unit == 'L' || (p)->unit == 'K')
@@ -31,9 +32,11 @@ void vetek_scale_print_packet(struct VetekScalePacket *packet)
 
 VetekScalePacket *vetek_scale_parse_packet(char *serial_command_line)
 {
+   vetek_status = VETEK_STATUS_OK;
 	unsigned char *b = serial_command_line;
 
 	if (*(b++) !=  0x02) {
+	   vetek_status = VETEK_STATUS_INVALID_PACKET;
 		fprintf(stderr, "Invalid command from vetek scale: {%s} perhaps a one time error?\n", serial_command_line);
 		return NULL;
 	}

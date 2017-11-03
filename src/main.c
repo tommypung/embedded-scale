@@ -23,6 +23,7 @@ static int status = OFFLINE;
 static char last_weight[10];
 static time_t last_weight_time;
 static time_t last_packet_time;
+static int num_invalid_packets = 0;
 static const unsigned char *house = "Tommy";
 
 int main(int argc, char **argv)
@@ -58,11 +59,14 @@ int main(int argc, char **argv)
 	   handle_packet(scale);
 	}
 
+      time_t ping = time(NULL);
       if (sem_wait(&runner_status->semaphore) == -1)
 	continue;
 
       runner_status->last_weight_time = last_weight_time;
       runner_status->last_packet_time = last_packet_time;
+      runner_status->num_invalid_packets = num_invalid_packets;
+      runner_status->ping = ping;
       sem_post(&runner_status->semaphore);
    }
    serial_close(serial);
@@ -76,6 +80,9 @@ static void handle_packet(VetekScalePacket *packet)
 {
 	if (packet == NULL)
 	{
+	   if (vetek_status == VETEK_STATUS_INVALID_PACKET)
+	     num_invalid_packets++;
+
 		if (time(NULL) - last_packet_time > 3)
 			changeStatus(NULL, OFFLINE);
 
@@ -121,6 +128,7 @@ static void changeStatus(VetekScalePacket *packet, int newStatus)
 	unsigned char *b;
 	int oldStatus = status;
 	status = newStatus;
+
 	switch(status)
 	{
 	case ONLINE:
@@ -130,8 +138,10 @@ static void changeStatus(VetekScalePacket *packet, int newStatus)
 		sound_play(SOUND_ONLINE);
 		break;
 	case OFFLINE:
-		sound_play(SOUND_OFFLINE);
-		break;
+	   if (oldStatus == newStatus)
+	     break;
+	   sound_play(SOUND_OFFLINE);
+	   break;
 	case MEASURING:
 		sound_play(SOUND_MEASURING);
 		break;
